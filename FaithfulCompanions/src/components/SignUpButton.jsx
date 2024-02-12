@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
       const SignUpButton = () => {
         return ( 
         <div className="button-container custom-signupbutton-container">
-        <Link to="/signup"><button className="mr-2 custom-signupbutton ">Sign Up</button></Link>
+        <Link to="/register"><button className="mr-2 custom-signupbutton ">Sign Up</button></Link>
           
           <Link to="/HomePage"><button className="custom-signupbutton-takeatour">SHOP ONLINE NOW</button></Link>
         </div>

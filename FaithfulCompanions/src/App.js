@@ -22,6 +22,8 @@ import AccessoryDetail from "./pages/AccessoryDetail.jsx";
 import PetFoodDetail from "./pages/PetFoodDetail.jsx";
 import AdminPage from './AdminPage'; 
 import ProfileForm from './UploadImgTest.js'
+import ActivateAccount from './ActivateAccount.js'
+import ActivateAccount2 from './ActivateAccount2.js'
 function App() {
 
   // For the preloading screen //
@@ -59,6 +61,8 @@ function App() {
               <Route path="/petfood-detail/:id/:name" element={<PetFoodDetail />} />              <Route path="/cart" element={<Cart />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<SignUp />} />
+              <Route path="/activate" element={<ActivateAccount />} />
+              <Route path="/activate2" element={<ActivateAccount2 />} />
               <Route path="/admin/add-item" element={<AdminPage />} />
               <Route path="/img" element={<ProfileForm />} />
             </Routes>

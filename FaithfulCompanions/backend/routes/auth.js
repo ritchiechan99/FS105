@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const User = require('../models/User'); // Import the User model
 const Item = require('../models/Item'); // Import the Item model
@@ -6,7 +7,9 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer'); // Import multer for image upload
 const router = express.Router();
 const app = express();
-const port = 3002 || 3001;
+const port = process.env.PORT || 3000 || 3002 || 3001;
+const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
 
 
 var storage = multer.diskStorage({
@@ -23,45 +26,162 @@ var upload = multer({ storage: storage })
 router.use(express.static(__dirname + '/public'));
 router.use('/uploads', express.static('uploads'));
 
-// Register User
+
+
+//Register
 router.post('/register', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password, email } = req.body;
 
-    // Check if user already exists
-    let user = await User.findOne({ username });
+    // Check if user or email already exists
+    let user = await User.findOne({ $or: [{ username }, { email }] });
     if (user) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: 'User or email already exists' });
     }
 
-    // Create a new user
-    user = new User({ username, password });
+    // Create a new user with email and default isActivated status
+    user = new User({ username, password, email, isActivated: false });
+
+    // Generate a token for email activation
+    const token = jwt.sign(
+      { userId: user._id, email: user.email }, // Include email in the token payload
+      "your_jwt_secret",
+      { expiresIn: '1h' }
+    );
+
+    // Set token and token expiry time for the user
+    user.token = token;
+    user.tokenExpires = new Date(Date.now() + 3600000); // Token expires in 1 hour
+
+    // Save the user to the database
     await user.save();
 
-    res.status(201).json({ message: 'User created successfully' });
+    const activationLink = `http://localhost:3002/activate?token=${token}`;
+    console.log("auth link 1 \n" + activationLink);
+    // Send activation email
+    await sendActivationEmail(email, activationLink);
+
+    // Return success message
+    res.status(201).json({ message: 'User created successfully. Please activate your account.' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 });
+
+mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('MongoDB connected'))
+  .catch(err => console.log(err));
+
+
+function sendActivationEmail(email, activationLink) {
+  const transporter = nodemailer.createTransport({
+      host: 'smtp.ethereal.email',
+      port: 587,
+      auth: {
+          user: 'ashleigh.hoppe@ethereal.email',
+          pass: '6Q2Eb3uW8YqmaYGYF9'
+      }
+  });
+  const mailOptions = {
+    from: 'ashleigh.hoppe@ethereal.email',
+    to: email,
+    subject: 'Account Activation',
+    text: 'Please activate your account by clicking on the link provided.\n'+activationLink
+  };
+
+  transporter.sendMail(mailOptions, function(error, info){
+    if (error) {
+      console.error('Error sending email:', error);
+    } else {
+      console.log('Email sent:', info.response);
+    }
+  });
+}
+
+
+
+// router.get('/activate', async (req, res) => {
+//   try {
+//     console.log("testtomg");
+//     res.status(200).send("Success"); // Send a response to indicate successful handling of the request
+//   } catch (error) {
+//     console.error("Error handling /activate request:", error);
+//     res.status(500).send("Internal Server Error"); // Send a 500 status code and an error message if an error occurs
+//   }
+// });
+
+// Endpoint to handle account activation
+router.get('/activate', async (req, res) => {
+  const { token } = req.query;
+  
+  console.log("testtomg   1");
+  if (!token) {
+    console.log("testtomg   2");
+    return res.status(400).send("No activation token provided.");
+    
+  }
+  console.log("testtomg   3");
+  jwt.verify(token, "your_jwt_secret", async (err, decoded) => {
+    console.log("testtomg   4");
+    if (err) {
+      console.log("testtomg   5");
+      return res.status(401).send("Invalid or expired link.");
+    }
+    console.log("testtomg   6 token : "+token);
+    const { userId } = decoded;
+
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        return res.status(404).send("User not found.");
+      }
+
+      if (user.isActivated) {
+        return res.status(400).send("Account is already activated.");
+      }
+
+      // Check if token is valid and not expired
+      if (user.token !== token || user.tokenExpires <= Date.now()) {
+        return res.status(401).send("Invalid or expired activation token.");
+      }
+
+      // Activate the user account
+      user.isActivated = true;
+      user.token = null; // Clear the token after activation
+      user.tokenExpires = null; // Clear the token expiry time after activation
+      await user.save();
+      
+    } catch (updateError) {
+      console.error('Activation error:', updateError);
+      res.status(500).send("Failed to activate account.");
+    }
+  });
+});
+
 
 // Login User
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     const user = await User.findOne({ username });
+
     if (!user) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
-    }
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid Credentials' });
+      return res.status(400).json({ message: 'Invalid User.' });
     }
 
-    // Include the username in the JWT token
+    // Check if the account is activated
+    if (!user.isActivated) {
+      return res.status(403).json({ message: 'Account is not activated. Please check your email.' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid Password.' });
+    }
+
+    // Generate JWT token
     const token = jwt.sign(
-      { id: user._id, username: user.username }, // Add username here
-      'your_jwt_secret', 
-      { expiresIn: '1h' }
+      { id: user._id, username: user.username },"your_jwt_secret",{ expiresIn: '1h' }
     );
 
     res.json({ token, message: 'Login successful' });
@@ -183,5 +303,9 @@ router.put('/admin/edit-item/:id', async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 3001 || 3002;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 module.exports = router;
