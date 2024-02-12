@@ -58,7 +58,7 @@ function App() {
               <Route path="/petfoods" element={<PetFood />} />
               <Route path="/petfood-detail/:id/:name" element={<PetFoodDetail />} />              <Route path="/cart" element={<Cart />} />
               <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<SignUp />} />
+              <Route path="/register" element={<SignUp />} />
               <Route path="/admin/add-item" element={<AdminPage />} />
               <Route path="/img" element={<ProfileForm />} />
             </Routes>
