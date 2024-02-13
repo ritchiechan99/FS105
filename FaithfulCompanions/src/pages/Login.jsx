@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Link } from "react-router-dom";
+import { Link, useNavigate} from "react-router-dom";
 import CustomNavbar from "../components/Navbar";
 import fcmlogo from "../images/logo/fcmlogo.jpeg";
 import "../styles/Login.css";
@@ -13,6 +13,7 @@ const Login = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const history = createBrowserHistory();
+  const navigate = useNavigate();
   const handleSubmit = async (event) => {
     event.preventDefault();
     
@@ -27,20 +28,27 @@ const Login = () => {
 
       // Store the token securely on the client (e.g., in local storage or a state management solution)
       // For simplicity, you can use local storage for now:
-      localStorage.setItem('token', token);
+      
 
       // Clear any previous error message
       setErrorMessage('');
-
+      
+      console.log('Account is active. Processing login...');
+      localStorage.setItem('token', token);
+      navigate('/homepage');
+      
       // Set a success message
       // setSuccessMessage('Login Successful');
-      history.push('/homepage');
-      window.location.reload();
+      
       // Redirect to a protected route or perform other actions based on successful login
       // For example, you can navigate to a dashboard:
       // history.push('/dashboard');
     } catch (err) {
       // Handle login failure and display an error message
+      if (err.response.status === 403) {
+        console.log('Account is pending. Redirecting...');
+        navigate('/pending');
+      }
       setSuccessMessage('');
       setErrorMessage(err.response?.data?.message || 'Login Failed');
     }

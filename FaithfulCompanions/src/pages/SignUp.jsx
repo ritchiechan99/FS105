@@ -36,7 +36,7 @@ const SignUp = () => {
       
       //await sendEmail();
       // Consider using useHistory hook for navigation without reloading the page
-      history.push("/login");
+      history.push("/pending");
       window.location.reload();
     } catch (err) {
       // Adjust the error handling based on the backend response structure

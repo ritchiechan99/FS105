@@ -3,11 +3,10 @@ import axios from 'axios';
 import { useLocation} from 'react-router-dom';
 import { createBrowserHistory } from 'history'; 
 const ActivateAccount = () => {
-  const [loading, setLoading] = useState(true);
+  const [setLoading] = useState(true);
   const [error, setError] = useState('');
   const location = useLocation();
   const history = createBrowserHistory();
-  const [showActivationMessage, setShowActivationMessage] = useState(false);
   
   useEffect(() => {
     const { search } = location;
@@ -25,7 +24,7 @@ const ActivateAccount = () => {
       setError('No activation token provided.');
       setLoading(false);
     }
-  }, [location, history]);
+  });
 
 
 
@@ -39,7 +38,6 @@ const ActivateAccount = () => {
     return <div>Account successfully activated</div>;
   }
 
-  return null; // Or redirect user, or show a success message
 };
 
 export default ActivateAccount;

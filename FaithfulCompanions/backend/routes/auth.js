@@ -11,7 +11,6 @@ const port = process.env.PORT || 3000 || 3002 || 3001;
 const nodemailer = require('nodemailer');
 const mongoose = require('mongoose');
 
-
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, './uploads')
@@ -51,7 +50,8 @@ router.post('/register', async (req, res) => {
 
     // Set token and token expiry time for the user
     user.token = token;
-    user.tokenExpires = new Date(Date.now() + 3600000); // Token expires in 1 hour
+    user.tokenExpires = new Date(Date.now() + 180000); // Token expires in 3 minutes
+    
 
     // Save the user to the database
     await user.save();
@@ -99,35 +99,18 @@ function sendActivationEmail(email, activationLink) {
 }
 
 
-
-// router.get('/activate', async (req, res) => {
-//   try {
-//     console.log("testtomg");
-//     res.status(200).send("Success"); // Send a response to indicate successful handling of the request
-//   } catch (error) {
-//     console.error("Error handling /activate request:", error);
-//     res.status(500).send("Internal Server Error"); // Send a 500 status code and an error message if an error occurs
-//   }
-// });
-
 // Endpoint to handle account activation
 router.get('/activate', async (req, res) => {
   const { token } = req.query;
   
-  console.log("testtomg   1");
   if (!token) {
-    console.log("testtomg   2");
     return res.status(400).send("No activation token provided.");
     
   }
-  console.log("testtomg   3");
   jwt.verify(token, "your_jwt_secret", async (err, decoded) => {
-    console.log("testtomg   4");
     if (err) {
-      console.log("testtomg   5");
       return res.status(401).send("Invalid or expired link.");
     }
-    console.log("testtomg   6 token : "+token);
     const { userId } = decoded;
 
     try {
@@ -141,16 +124,18 @@ router.get('/activate', async (req, res) => {
       }
 
       // Check if token is valid and not expired
-      if (user.token !== token || user.tokenExpires <= Date.now()) {
+      // if (user.token !== token || user.tokenExpires <= Date.now()) {
+      //   return res.status(401).send("Invalid or expired activation token.");
+      // }
+      if (user.token !== token ) {
         return res.status(401).send("Invalid or expired activation token.");
       }
-
       // Activate the user account
       user.isActivated = true;
       user.token = null; // Clear the token after activation
       user.tokenExpires = null; // Clear the token expiry time after activation
       await user.save();
-      
+
     } catch (updateError) {
       console.error('Activation error:', updateError);
       res.status(500).send("Failed to activate account.");
@@ -171,7 +156,8 @@ router.post('/login', async (req, res) => {
 
     // Check if the account is activated
     if (!user.isActivated) {
-      return res.status(403).json({ message: 'Account is not activated. Please check your email.' });
+      // Inform the frontend that the account is not activated
+      return res.status(403).json({ message: 'Account is not activated. Please check your email.', accountStatus: 'pending' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -184,7 +170,11 @@ router.post('/login', async (req, res) => {
       { id: user._id, username: user.username },"your_jwt_secret",{ expiresIn: '1h' }
     );
 
-    res.json({ token, message: 'Login successful' });
+    res.json({
+      token, // Generate and send your JWT token as needed
+      isActivated: user.isActivated, // Send the account's activation status
+      message: 'Login successful.'
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
